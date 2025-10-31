@@ -1,4 +1,6 @@
 # ddscatcli
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17493075.svg)](https://doi.org/10.5281/zenodo.17493075)
+[![PyPI](https://img.shields.io/pypi/v/ddscatcli.svg)](https://pypi.org/project/ddscatcli/)
 
 This script is a command-line utility to edit and run a `ddscat.par` file for DDSCAT in a reproducible and automated way.
 
@@ -110,3 +112,14 @@ ddscat.par.bak.YYYYMMDD-HHMMSS
 
 This project is licensed under the **GNU General Public License v3.0 (GPLv3)**.
 You are free to use, modify, and share it under the same license.
+
+--- 
+
+## Citation
+
+If you use `ddscatcli`, please cite:
+
+> Clément Argentin, **ddscatcli**, v1.0.1 (2025).  
+> DOI: [10.5281/zenodo.17493075](https://doi.org/10.5281/zenodo.17493075)
+
+You can click the **“Cite this repository”** button on the right-hand side of the GitHub page for citation formats (BibTeX, APA, etc.).

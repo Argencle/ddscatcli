@@ -1,6 +1,6 @@
 [project]
 name = "ddscatcli"
-version = "1.0.0"
+version = "1.0.1"
 description = "CLI utility to edit and run a ddscat.par file for DDSCAT"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -27,4 +27,6 @@ build-backend = "setuptools.build_meta"
 
 [project.urls]
 Homepage = "https://pypi.org/project/ddscatcli/"
+Repository = "https://github.com/Argencle/ddscatcli"
+
 

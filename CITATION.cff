@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Argentin"
+    given-names: "Clément"
+title: "ddscatcli"
+version: "1.0.1"
+doi: "10.5281/zenodo.17493075"
+date-released: "2025-10-31"
+repository-code: "https://github.com/Argencle/ddscatcli"
+url: "https://pypi.org/project/ddscatcli/"
+license: "GPL-3.0"
