@@ -26,11 +26,21 @@ export DDSCAT_EXE=/path/to/ddscat
 
 ## Installation
 
+Install from PyPI:
+
 ```bash
 pip install ddscatcli
 ```
 
-This installs the `ddscatcli` command globally.
+This installs the `ddscatcli` command globally. If you prefer to keep it isolated in a virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # on Linux/macOS
+# .venv\Scripts\activate    # on Windows
+
+pip install ddscatcli
+```
 
 ---
 
