@@ -4,7 +4,7 @@ authors:
   - family-names: "Argentin"
     given-names: "Clément"
 title: "ddscatcli"
-version: "1.0.2"
+version: "1.0.3"
 doi: "10.5281/zenodo.17493074"
 date-released: "2026-01-16"
 repository-code: "https://github.com/Argencle/ddscatcli"

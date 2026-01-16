@@ -33,6 +33,21 @@ export DDSCAT_EXE=/abs/path/to/ddscat
 
 ---
 
+## Postprocessing (ddpostprocess)
+
+`ddscatcli` can optionally run `ddpostprocess` (from DDSCAT) after a simulation, or independently using `-post` flag.
+
+### Environment variables
+
+- `DDPOST_EXE`: path to the `ddpostprocess` executable (absolute recommended)
+- `DDPOST_PAR`: path to `ddpostprocess.par` (absolute recommended)
+
+If not set, `ddscatcli` looks in the current working directory for:
+- `ddpostprocess`
+- `ddpostprocess.par`
+
+---
+
 ## Installation
 
 Install from PyPI:

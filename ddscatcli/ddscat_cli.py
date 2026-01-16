@@ -154,62 +154,91 @@ def _resolve_env_path(varname: str) -> Path | None:
     return p
 
 
-# ---- Path resolution via environment variables (export) ----
-def _resolve_par() -> Path:
+def _resolve_file_env_or_local(
+    env_var: str, local_name: str, what: str
+) -> Path:
     """
-    ddscat.par resolution order:
-      1) $DDSCAT_PAR (absolute recommended; if relative -> relative to cwd)
-      2) ./ddscat.par (current directory where ddscatcli is launched)
-    Exit(2) on failure.
+    Resolve a file path with the pattern:
+      1) $ENV_VAR (absolute recommended; if relative -> relative to cwd)
+      2) ./local_name (current directory where ddscatcli is launched)
     """
-    envp = _resolve_env_path("DDSCAT_PAR")
+    envp = _resolve_env_path(env_var)
     if envp:
         return envp
 
-    # local fallback
-    local = Path.cwd() / "ddscat.par"
+    local = Path.cwd() / local_name
     if local.exists():
         return local
 
     print(
-        "[ERROR] ddscat.par not found. Set it via:\n"
-        "  export DDSCAT_PAR=/path/to/ddscat.par\n"
-        "or place ddscat.par in the current directory.",
+        f"[ERROR] {what} not found. Set it via:\n"
+        f"  export {env_var}=/path/to/{local_name}\n"
+        f"or place {local_name} in the current directory.",
         file=sys.stderr,
     )
     sys.exit(2)
 
 
-def _resolve_exe() -> Path:
+def _resolve_exe_env_or_local_or_path(
+    env_var: str, local_name: str, what: str
+) -> Path:
     """
-    ddscat executable resolution order:
-      1) $DDSCAT_EXE (absolute recommended; if relative -> relative to cwd)
-      2) ./ddscat (current directory where ddscatcli is launched)
-      3) 'ddscat' found on PATH
-    Exit(4) on failure.
+    Resolve an executable path with the pattern:
+      1) $ENV_VAR (absolute recommended; if relative -> relative to cwd)
+      2) ./local_name (current directory where ddscatcli is launched)
+      3) local_name found on PATH
     """
-    envp = _resolve_env_path("DDSCAT_EXE")
+    envp = _resolve_env_path(env_var)
     if envp:
         return envp
 
-    # local fallback (current working directory)
-    local = Path.cwd() / "ddscat"
+    local = Path.cwd() / local_name
     if local.exists():
         return local.resolve()
 
-    which = shutil.which("ddscat")
+    which = shutil.which(local_name)
     if which:
         return Path(which).resolve()
 
     print(
-        "[ERROR] ddscat executable not found.\n"
-        "Set it via:\n"
-        "  export DDSCAT_EXE=/path/to/ddscat\n"
-        "or place an executable named 'ddscat' in the current directory,\n"
-        "or ensure 'ddscat' is on your PATH.",
+        f"[ERROR] {what} executable not found.\n"
+        f"Set it via:\n"
+        f"  export {env_var}=/path/to/{local_name}\n"
+        f"or place an executable named '{local_name}' in the current directory,\n"
+        f"or ensure '{local_name}' is on your PATH.",
         file=sys.stderr,
     )
     sys.exit(4)
+
+
+def _resolve_par() -> Path:
+    return _resolve_file_env_or_local("DDSCAT_PAR", "ddscat.par", "ddscat.par")
+
+
+def _resolve_post_par() -> Path:
+    return _resolve_file_env_or_local(
+        "DDPOST_PAR", "ddpostprocess.par", "ddpostprocess.par"
+    )
+
+
+def _resolve_exe() -> Path:
+    return _resolve_exe_env_or_local_or_path("DDSCAT_EXE", "ddscat", "ddscat")
+
+
+def _resolve_post_exe() -> Path:
+    return _resolve_exe_env_or_local_or_path(
+        "DDPOST_EXE", "ddpostprocess", "ddpostprocess"
+    )
+
+
+def _run_ddpostprocess():
+    post_par = _resolve_post_par()
+    post_exe = _resolve_post_exe()
+
+    workdir = post_par.parent
+    print(f"[POST] {post_exe} (cwd: {workdir})")
+
+    subprocess.run([str(post_exe)], cwd=str(workdir), check=True)
 
 
 def normalize_line(s: str) -> str:
@@ -568,6 +597,12 @@ def run(argv=None) -> int:
         "-run", action="store_true", help="Run DDSCAT after successful edits."
     )
     ap.add_argument(
+        "-post",
+        action="store_true",
+        help="Run ddpostprocess (independent or after DDSCAT if -run is also used).",
+    )
+
+    ap.add_argument(
         "-mpi",
         nargs="?",
         const="mpirun",
@@ -651,6 +686,10 @@ def run(argv=None) -> int:
         )
 
     args = ap.parse_args(argv)
+
+    if args.post and not args.run:
+        _run_ddpostprocess()
+        return 0
 
     DDSCAT_PAR = _resolve_par()
     lines = read_lines(DDSCAT_PAR)
@@ -748,6 +787,9 @@ def run(argv=None) -> int:
 
         print(f"[RUN] {' '.join(cmd)} (cwd: {DDSCAT_PAR.parent})")
         subprocess.run(cmd, cwd=str(DDSCAT_PAR.parent), env=env, check=True)
+
+    if args.post:
+        _run_ddpostprocess()
 
     return 0
 
