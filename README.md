@@ -1,5 +1,5 @@
 # ddscatcli
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17493075.svg)](https://doi.org/10.5281/zenodo.17493075)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17493074.svg)](https://doi.org/10.5281/zenodo.17493074)
 [![PyPI](https://img.shields.io/pypi/v/ddscatcli.svg)](https://pypi.org/project/ddscatcli/)
 
 This script is a command-line utility to edit and run a `ddscat.par` file for DDSCAT in a reproducible and automated way.
@@ -15,11 +15,20 @@ It allows you to:
 
 ## Configuration
 
-Set your paths using environment variables:
+`ddscatcli` resolves `ddscat.par` in this order:
+1. `$DDSCAT_PAR` (absolute path recommended; relative paths are interpreted relative to your current working directory)
+2. `ddscat.par` (current working directory)
+
+`ddscatcli` resolves the DDSCAT executable in this order:
+1. `$DDSCAT_EXE` (absolute path recommended; relative paths are interpreted relative to your current working directory)
+2. `ddscat` (current working directory)
+3. `ddscat` found on your `PATH`
+
+Example:
 
 ```bash
-export DDSCAT_PAR=/path/to/ddscat.par
-export DDSCAT_EXE=/path/to/ddscat
+export DDSCAT_PAR=/abs/path/to/ddscat.par
+export DDSCAT_EXE=/abs/path/to/ddscat
 ```
 
 ---
@@ -98,6 +107,32 @@ Set OpenMP threads:
 ddscatcli -omp-threads 16 -run
 ```
 
+You can repeat `-DIEL` once per material:
+```bash
+ddscatcli -NCOMP 3 -DIEL diel1.txt -DIEL diel2.txt -DIEL diel3.txt
+```
+
+Or provide them in a single flag:
+```bash
+ddscatcli -NCOMP 3 --diels diel1.txt diel2.txt diel3.txt
+```
+**Note**: if `-NCOMP` is provided, the number of dielectric entries must match `NCOMP` exactly.
+
+---
+
+## Use from Python
+
+`ddscatcli` exposes a `run` function.
+```Python
+import os
+import ddscatcli
+
+os.environ["DDSCAT_PAR"] = "/abs/path/to/ddscat.par"
+os.environ["DDSCAT_EXE"] = "/abs/path/to/ddscat"
+
+ddscatcli.run(["-dry-run", "-CSHAPE", "ELLIPSOID"])
+```
+
 ---
 
 ## Backups
@@ -129,7 +164,7 @@ You are free to use, modify, and share it under the same license.
 
 If you use `ddscatcli`, please cite:
 
-> Clément Argentin, **ddscatcli**, v1.0.1 (2025).  
-> DOI: [10.5281/zenodo.17493075](https://doi.org/10.5281/zenodo.17493075)
+> Clément Argentin, **ddscatcli** (2025).  
+> DOI: [10.5281/zenodo.17493074](https://doi.org/10.5281/zenodo.17493074)
 
 You can click the **“Cite this repository”** button on the right-hand side of the GitHub page for citation formats (BibTeX, APA, etc.).

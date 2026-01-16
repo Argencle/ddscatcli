@@ -16,6 +16,21 @@ from pathlib import Path
 from datetime import datetime
 
 
+class StoreOnceAction(argparse.Action):
+    """
+    Argparse action that forbids passing the same scalar option multiple times.
+    This prevents silent overrides ("last wins") for scalar options.
+    """
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        current = getattr(namespace, self.dest, None)
+        if current is not None:
+            parser.error(
+                f"Option {option_string} cannot be used multiple times."
+            )
+        setattr(namespace, self.dest, values)
+
+
 # ---------- Applied if the corresponding -KEY is passed ----------
 REPLACEMENTS = {
     "CSHAPE": (
@@ -124,20 +139,35 @@ _NCOMP_RX = re.compile(r"^\s*\d+\s*=\s*NCOMP\b", re.IGNORECASE)
 _DIEL_PATH_RX = re.compile(r"'([^']+)'")
 
 
+def _resolve_env_path(varname: str) -> Path | None:
+    """
+    Resolve an environment path.
+    Absolute paths are used as-is.
+    Relative paths are interpreted relative to the current working directory.
+    """
+    v = os.getenv(varname)
+    if not v:
+        return None
+    p = Path(v).expanduser()
+    if not p.is_absolute():
+        p = (Path.cwd() / p).resolve()
+    return p
+
+
 # ---- Path resolution via environment variables (export) ----
 def _resolve_par() -> Path:
     """
     ddscat.par resolution order:
-      1) $DDSCAT_PAR
-      2) ./ddscat.par (current directory)
+      1) $DDSCAT_PAR (absolute recommended; if relative -> relative to cwd)
+      2) ./ddscat.par (current directory where ddscatcli is launched)
     Exit(2) on failure.
     """
-    env = os.getenv("DDSCAT_PAR")
-    if env:
-        return Path(env)
+    envp = _resolve_env_path("DDSCAT_PAR")
+    if envp:
+        return envp
 
     # local fallback
-    local = Path("ddscat.par")
+    local = Path.cwd() / "ddscat.par"
     if local.exists():
         return local
 
@@ -153,23 +183,29 @@ def _resolve_par() -> Path:
 def _resolve_exe() -> Path:
     """
     ddscat executable resolution order:
-      1) $DDSCAT_EXE
-      2) 'ddscat' found on PATH
+      1) $DDSCAT_EXE (absolute recommended; if relative -> relative to cwd)
+      2) ./ddscat (current directory where ddscatcli is launched)
+      3) 'ddscat' found on PATH
     Exit(4) on failure.
     """
-    env = os.getenv("DDSCAT_EXE")
-    if env:
-        return Path(env)
+    envp = _resolve_env_path("DDSCAT_EXE")
+    if envp:
+        return envp
 
-    # local fallback
-    local = Path("ddscat")
+    # local fallback (current working directory)
+    local = Path.cwd() / "ddscat"
     if local.exists():
         return local.resolve()
+
+    which = shutil.which("ddscat")
+    if which:
+        return Path(which).resolve()
 
     print(
         "[ERROR] ddscat executable not found.\n"
         "Set it via:\n"
         "  export DDSCAT_EXE=/path/to/ddscat\n"
+        "or place an executable named 'ddscat' in the current directory,\n"
         "or ensure 'ddscat' is on your PATH.",
         file=sys.stderr,
     )
@@ -432,11 +468,16 @@ def patch_ncomp_and_dielectrics(lines, ncomp=None, diel_list=None):
 
     old_n = _parse_header_count(out[idx_head])
 
-    # Decide target count
-    if diel_list and ncomp is None:
-        new_n = len(diel_list)
-    elif ncomp is not None:
+    # Decide target count (strict when ncomp is explicitly provided)
+    if ncomp is not None:
         new_n = int(ncomp)
+        if diel_list is not None and len(diel_list) != new_n:
+            raise RuntimeError(
+                f"NCOMP={new_n} but received {len(diel_list)} dielectric entries. "
+                "Provide exactly NCOMP dielectric files/lines."
+            )
+    elif diel_list:
+        new_n = len(diel_list)
     else:
         # Nothing to do
         return out, False, []
@@ -455,17 +496,9 @@ def patch_ncomp_and_dielectrics(lines, ncomp=None, diel_list=None):
     info_msgs = []
 
     if diel_list:
-        # Use user-provided list; if longer than new_n, truncate; if shorter and need more -> error
-        if len(diel_list) < new_n:
-            raise RuntimeError(
-                f"Provided {len(diel_list)} -DIEL entries but NCOMP={new_n}."
-            )
+        # Use user-provided list (validated above if NCOMP was explicitly set)
         for i in range(new_n):
             payload.append(_format_diel_line(i + 1, diel_list[i]))
-        if len(diel_list) > new_n:
-            info_msgs.append(
-                f"Note: {len(diel_list)} -DIEL entries given; using first {new_n}."
-            )
     else:
         # No new lines provided
         if new_n > old_n:
@@ -513,15 +546,18 @@ KNOWN_CSHAPES = [
 ]
 
 
-# ---------- CLI / Main ----------
-def main():
-    if "-CSHAPE" in sys.argv:
-        i = sys.argv.index("-CSHAPE")
-        if i + 1 < len(sys.argv) and sys.argv[i + 1] in ("-h", "--help"):
+def run(argv=None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+
+    if "-CSHAPE" in argv:
+        i = argv.index("-CSHAPE")
+        if i + 1 < len(argv) and argv[i + 1] in ("-h", "--help"):
             print("Available CSHAPE values:")
             for s in KNOWN_CSHAPES:
                 print("  -", s)
-            sys.exit(0)
+            return 0
+
     ap = argparse.ArgumentParser(description="Use a single ddscat.par")
     ap.add_argument(
         "-dry-run",
@@ -535,13 +571,20 @@ def main():
         "-mpi",
         nargs="?",
         const="mpirun",
+        action=StoreOnceAction,
         help="MPI launcher to use (e.g., 'mpirun', 'mpiexec', 'srun'). "
         "If provided without a value, defaults to 'mpirun'.",
     )
-    ap.add_argument("-np", type=int, help="Number of MPI ranks (with -mpi).")
+    ap.add_argument(
+        "-np",
+        type=int,
+        action=StoreOnceAction,
+        help="Number of MPI ranks (with -mpi).",
+    )
     ap.add_argument(
         "-omp-threads",
         type=int,
+        action=StoreOnceAction,
         help="Set OMP_NUM_THREADS for OpenMP threading.",
     )
 
@@ -553,39 +596,61 @@ def main():
         "multiple SHPAR lines.",
     )
     ap.add_argument(
-        "-NPLANES", type=int, help="Override number of scattering planes."
+        "-NPLANES",
+        type=int,
+        action=StoreOnceAction,
+        help="Override number of scattering planes.",
     )
     ap.add_argument("-PLANE", action="append", help="Override a plane line.")
     ap.add_argument(
-        "-NORDERS", type=int, help="Override number of diffraction orders."
+        "-NORDERS",
+        type=int,
+        action=StoreOnceAction,
+        help="Override number of diffraction orders.",
     )
     ap.add_argument("-ORDER", action="append", help="Override an order line.")
     ap.add_argument(
-        "-NCONES", type=int, help="Override number of scattering cones."
+        "-NCONES",
+        type=int,
+        action=StoreOnceAction,
+        help="Override number of scattering cones.",
     )
     ap.add_argument("-CONE", action="append", help="Override a cone line.")
 
     # NCOMP + dielectric files
     ap.add_argument(
-        "-NCOMP", type=int, help="Set number of dielectric materials."
+        "-NCOMP",
+        type=int,
+        action=StoreOnceAction,
+        help="Set number of dielectric materials.",
     )
-    ap.add_argument(
+
+    diel_group = ap.add_mutually_exclusive_group()
+    diel_group.add_argument(
         "-DIEL",
         action="append",
         help="Dielectric file line or path. Repeat once per material. "
         "If a plain path is given, the line will be formatted as "
         "'<path>' = file with refractive index i",
     )
+    diel_group.add_argument(
+        "--diels",
+        nargs="+",
+        action=StoreOnceAction,
+        help="Dielectric file paths/lines in a single flag. Example: "
+        "--diels file1 file2 file3",
+    )
 
-    # Generic replacements
+    # Generic replacements (scalar: forbid duplicates)
     for key in REPLACEMENTS.keys():
         ap.add_argument(
             f"-{key}",
             dest=key,
+            action=StoreOnceAction,
             help=f"Override {key} line. Pass a full line or a short value.",
         )
 
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     DDSCAT_PAR = _resolve_par()
     lines = read_lines(DDSCAT_PAR)
@@ -606,7 +671,7 @@ def main():
             lines_after = patch_shpar_only(lines_after, args.SHPAR)
         except RuntimeError as e:
             print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(3)
+            return 3
 
     # 3) Scattering-only edits
     if (
@@ -628,19 +693,20 @@ def main():
             )
         except RuntimeError as e:
             print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(3)
+            return 3
 
     # 4) NCOMP + dielectric handling
-    if (args.NCOMP is not None) or args.DIEL:
+    diel_list = args.diels if args.diels else args.DIEL
+    if (args.NCOMP is not None) or diel_list:
         try:
             lines_after, _, info_msgs = patch_ncomp_and_dielectrics(
-                lines_after, ncomp=args.NCOMP, diel_list=args.DIEL
+                lines_after, ncomp=args.NCOMP, diel_list=diel_list
             )
             for m in info_msgs:
                 print("  -", m)
         except RuntimeError as e:
             print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(3)
+            return 3
 
     # 5) Write or preview
     if args.dry_run:
@@ -648,7 +714,7 @@ def main():
             len(lines_after) - len(lines)
         )
         print(f"[DRY-RUN] Would change {diff_ct} line(s).")
-        sys.exit(0)
+        return 0
 
     if lines_after != lines:
         bak = write_with_backup(DDSCAT_PAR, lines_after)
@@ -658,7 +724,7 @@ def main():
 
     # Exit non-zero only if user asked us to change a key we couldn't find
     if err_msgs:
-        sys.exit(3)
+        return 3
 
     if args.run:
         exe_path = _resolve_exe()
@@ -682,6 +748,12 @@ def main():
 
         print(f"[RUN] {' '.join(cmd)} (cwd: {DDSCAT_PAR.parent})")
         subprocess.run(cmd, cwd=str(DDSCAT_PAR.parent), env=env, check=True)
+
+    return 0
+
+
+def main():
+    raise SystemExit(run())
 
 
 if __name__ == "__main__":
