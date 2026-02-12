@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4] - 2026-02-12
+
+### Changed
+- Declared Python support as **>= 3.10** (`requires-python` metadata updated).
+- Updated package classifiers to explicitly list supported Python versions (3.10–3.14).
+
+### Added
+- Added a `tox` test matrix to validate `ddscatcli` on Python 3.10–3.14 
+
 ## [1.0.3] - 2026-01-16
 
 ### Added

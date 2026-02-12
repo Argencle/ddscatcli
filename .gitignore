@@ -2,6 +2,7 @@
 .venv/
 __pycache__/
 .DS_Store
+.tox/
 
 # editors / IDE
 .vscode/
@@ -10,3 +11,6 @@ __pycache__/
 dist/
 *.egg-info/
 build/
+
+# Project‑specific folders
+bin/
