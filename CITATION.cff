@@ -1,11 +1,13 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
+type: software
 authors:
   - family-names: "Argentin"
     given-names: "Clément"
+    orcid: "https://orcid.org/0009-0008-1270-2428"
 title: "ddscatcli"
 version: "1.0.4"
-doi: "10.5281/zenodo.17493074"
+doi: "10.5281/zenodo.18619006"
 date-released: "2026-02-12"
 repository-code: "https://github.com/Argencle/ddscatcli"
 url: "https://pypi.org/project/ddscatcli/"
