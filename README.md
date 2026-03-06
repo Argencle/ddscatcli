@@ -177,9 +177,17 @@ You are free to use, modify, and share it under the same license.
 
 ## Citation
 
-If you use `ddscatcli`, please cite:
+This software was developed to produce the results presented in the following paper. If you use `ddscatcli`, please cite both the software and the paper:
 
-> Clément Argentin, **ddscatcli** (2025).  
-> DOI: [10.5281/zenodo.17493074](https://doi.org/10.5281/zenodo.17493074)
+### Software
+
+> Argentin C. (2025). *ddscatcli*. Zenodo.  
+> [10.5281/zenodo.17493074](https://doi.org/10.5281/zenodo.17493074)
+
+### Paper
+
+> Argentin, C., Chaumet, P. C., Gross, M., & Yurkin, M. A. (2026).
+> *Floating-point--consistent cross-verification methodology for reproducible and interoperable DDA solvers with fair benchmarking*.
+> [arXiv:2603.02871](https://doi.org/10.48550/arXiv.2603.02871)
 
 You can click the **“Cite this repository”** button on the right-hand side of the GitHub page for citation formats (BibTeX, APA, etc.).
