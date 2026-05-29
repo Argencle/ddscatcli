@@ -177,12 +177,14 @@ You are free to use, modify, and share it under the same license.
 
 ## Citation
 
-This software was developed to produce the results presented in the following paper. If you use `ddscatcli`, please cite both the software and the paper:
+This software was developed to produce the results presented in the following paper. If you use `ddscatcli`, please cite both the software archived specific version and the associated paper:
 
 ### Software
 
-> Argentin C. (2025). *ddscatcli*. Zenodo.  
+> Argentin C. (2025). *ddscatcli* (vX.Y.Z). Zenodo.  
 > [10.5281/zenodo.17493074](https://doi.org/10.5281/zenodo.17493074)
+
+Please replace `vX.Y.Z` with the exact release version used.
 
 ### Paper
 
